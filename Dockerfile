@@ -7,6 +7,7 @@ RUN apt-get update && \
     mkdir -p /etc/nginx/certs
 
 ADD templates /templates
+COPY render_template.rb /render_template.rb
 COPY entrypoint /entrypoint
 
 ENTRYPOINT ["/entrypoint"]
