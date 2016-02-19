@@ -2,6 +2,33 @@ require 'erb'
 require 'ostruct'
 require 'aws-sdk'
 
+class ServerDecorator
+  attr_accessor :hostname, :proxy_protocol, :ssl_cert_path, :ssl_key_path,
+                :upstream_port, :upstream_name, :force_ssl, :disable_ssl
+
+  def initialize(attrs)
+    attrs.each do |k, v|
+      instance_variable_set(:"@#{k}", v)
+    end
+  end
+
+  def http_listen
+    line = []
+    line << "listen 80"
+    line << "proxy_protocol" if proxy_protocol
+    line << "default_server" if hostname == "_"
+    line.join(" ")
+  end
+
+  def https_listen
+    line = []
+    line << "listen 443 ssl http2"
+    line << "proxy_protocol" if proxy_protocol
+    line << "default_server" if hostname == "_"
+    line.join(" ")
+  end
+end
+
 ### Environement variables example
 # UPSTREAM_NAME=backend.local
 # UPSTREAM_PORT=3000
@@ -48,12 +75,24 @@ hosts.each do |host|
     download_s3(s3_ssl_key_path, ssl_key_path)
   end
 
-  render_template('/templates/server.conf.erb', "/etc/nginx/conf.d/#{host}.conf",
+  decorator = ServerDecorator.new(
     hostname: host,
+    proxy_protocol: !(ENV['DISABLE_PROXY_PROTOCOL'] == 'true'),
     ssl_cert_path: ssl_cert_path,
     ssl_key_path:  ssl_key_path,
     force_ssl: ENV['FORCE_SSL'] == 'true',
     upstream_name: ENV['UPSTREAM_NAME'],
     upstream_port: ENV['UPSTREAM_PORT']
   )
+  render_template('/templates/server.conf.erb', "/etc/nginx/conf.d/#{host}.conf", decorator: decorator)
+end
+
+if hosts.empty?
+  decorator = ServerDecorator.new(
+    hostname: "_",
+    proxy_protocol: !(ENV['DISABLE_PROXY_PROTOCOL'] == 'true'),
+    upstream_name: ENV['UPSTREAM_NAME'],
+    upstream_port: ENV['UPSTREAM_PORT']
+  )
+  render_template('/templates/server.conf.erb', "/etc/nginx/conf.d/default.conf", decorator: decorator)
 end

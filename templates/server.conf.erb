@@ -1,41 +1,41 @@
-<% if force_ssl %>
+<% if decorator.force_ssl %>
 server {
-    listen 80 proxy_protocol;
-    server_name <%= hostname %>;
-    return 301 https://<%= hostname %>$request_uri;
+  <%= decorator.http_listen %>;
+  server_name <%= decorator.hostname %>;
+  return 301 https://<%= decorator.hostname %>$request_uri;
 }
 <% end %>
 
 server {
-    server_name <%= hostname %>;
+  server_name <%= decorator.hostname %>;
 
-    <% unless force_ssl %>
-    listen 80  proxy_protocol;
-    <% end %>
+  <% unless decorator.force_ssl %>
+  <%= decorator.http_listen %>;
+  <% end %>
 
-    <% if ssl_cert_path && ssl_key_path %>
-    listen 443 proxy_protocol ssl;
-    ssl_certificate      <%= ssl_cert_path %>;
-    ssl_certificate_key  <%= ssl_key_path %>;
-    <% end %>
+  <% if decorator.ssl_cert_path && decorator.ssl_key_path %>
+  <%= decorator.https_listen %>;
+  ssl_certificate      <%= decorator.ssl_cert_path %>;
+  ssl_certificate_key  <%= decorator.ssl_key_path %>;
+  <% end %>
 
-    set_real_ip_from 10.0.0.0/8;
-    real_ip_header proxy_protocol;
+  set_real_ip_from 10.0.0.0/8;
+  real_ip_header proxy_protocol;
 
-    keepalive_timeout 5;
+  keepalive_timeout 5;
 
-    location / {
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
-      proxy_set_header X-Real-IP         $proxy_protocol_addr;
-      proxy_set_header X-Forwarded-For   $proxy_protocol_addr;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $http_host;
-      proxy_redirect off;
+  location / {
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Real-IP         $proxy_protocol_addr;
+    proxy_set_header X-Forwarded-For   $proxy_protocol_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
 
-      proxy_read_timeout 60;
-      proxy_send_timeout 60;
+    proxy_read_timeout 60;
+    proxy_send_timeout 60;
 
-      proxy_pass http://<%= upstream_name %>;
-    }
+    proxy_pass http://<%= decorator.upstream_name %>;
   }
+}
